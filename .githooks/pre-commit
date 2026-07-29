@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-commit: lint + format check, typecheck, unit tests.
+set -e
+
+echo "pre-commit: biome check"
+bunx biome check .
+
+echo "pre-commit: typecheck"
+bunx tsc --noEmit
+
+echo "pre-commit: unit tests"
+bun test
+
+echo "pre-commit: ok"

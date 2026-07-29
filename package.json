@@ -1,0 +1,46 @@
+{
+  "name": "smith",
+  "version": "0.1.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "smith": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "build": "bun build.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "smoke": "test/smoke.sh",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@types/bun": "latest",
+    "@types/diff": "^8.0.0",
+    "@types/react": "^19.2.17",
+    "@types/turndown": "^5.0.6"
+  },
+  "peerDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.17",
+    "@mozilla/readability": "^0.6.0",
+    "@vscode/ripgrep": "^1.18.0",
+    "ai": "^7.0.42",
+    "diff": "^9.0.0",
+    "fast-glob": "^3.3.3",
+    "ink": "^7.1.1",
+    "ink-text-input": "^6.0.0",
+    "linkedom": "^0.18.13",
+    "marked": "^18.0.7",
+    "marked-terminal": "^7.3.0",
+    "react": "^19.2.8",
+    "turndown": "^7.2.4",
+    "zod": "^4.4.3"
+  }
+}
