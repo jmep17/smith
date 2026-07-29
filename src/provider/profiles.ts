@@ -3,6 +3,9 @@
 // air — MacBook Air M1 16GB:     Qwen2.5-Coder-7B    @ 16K context
 // Override auto-detection with SMITH_PROFILE=m4|air or --profile.
 
+/** How much always-on system-prompt content a profile can afford. */
+export type PromptTier = "full" | "lean";
+
 export interface Profile {
   name: string;
   model: string;
@@ -17,6 +20,10 @@ export interface Profile {
   maxSteps: number;
   /** Tools omitted on constrained profiles (by name). */
   disabledTools: string[];
+  /** Size tier for optional system-prompt sections (stack card, guidance). */
+  promptTier: PromptTier;
+  /** Cap on injected AGENT.md before truncation (chars). */
+  maxMemoryChars: number;
 }
 
 const PROFILES: Record<string, Profile> = {
@@ -31,6 +38,8 @@ const PROFILES: Record<string, Profile> = {
     maxToolResultChars: 30_000,
     maxSteps: 60,
     disabledTools: [],
+    promptTier: "full",
+    maxMemoryChars: 6_000,
   },
   air: {
     name: "air",
@@ -42,6 +51,8 @@ const PROFILES: Record<string, Profile> = {
     maxToolResultChars: 4_000,
     maxSteps: 20,
     disabledTools: [],
+    promptTier: "lean",
+    maxMemoryChars: 2_400,
   },
 };
 

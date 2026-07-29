@@ -1,4 +1,6 @@
 import type { Profile } from "../provider/profiles.ts";
+import { frontendGuidance, greenfieldGuidance } from "./frontend-guidance.ts";
+import { detectStack, isGreenfield, renderStackCard } from "./stack.ts";
 
 async function gitStatus(cwd: string): Promise<string> {
   try {
@@ -19,10 +21,10 @@ async function gitStatus(cwd: string): Promise<string> {
 
 export async function buildSystemPrompt(
   cwd: string,
-  _profile: Profile,
+  profile: Profile,
   memory: string | null,
 ): Promise<string> {
-  const git = await gitStatus(cwd);
+  const [git, stack] = await Promise.all([gitStatus(cwd), detectStack(cwd)]);
   const base = `You are smith, a coding agent running in a terminal. You help with software engineering: exploring code, fixing bugs, writing features, running commands, and writing documentation.
 
 # How to work
@@ -40,7 +42,23 @@ export async function buildSystemPrompt(
 - date: ${new Date().toISOString().slice(0, 10)}
 - git: ${git}`;
 
-  return memory ? `${base}\n\n# Project notes (AGENT.md)\n${memory}` : base;
+  const parts = [base];
+  if (stack) parts.push(renderStackCard(stack, profile.promptTier));
+  if (memory) {
+    const cap = profile.maxMemoryChars;
+    const capped =
+      memory.length > cap
+        ? `${memory.slice(0, cap)}\n[AGENT.md truncated at ${cap} chars]`
+        : memory;
+    parts.push(`# Project notes (AGENT.md)\n${capped}`);
+  }
+  if (stack) {
+    const guidance = frontendGuidance(stack, profile.promptTier);
+    if (guidance) parts.push(guidance);
+  } else if (await isGreenfield(cwd)) {
+    parts.push(greenfieldGuidance(profile.promptTier));
+  }
+  return parts.join("\n\n");
 }
 
 export async function loadMemory(cwd: string): Promise<string | null> {
