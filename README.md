@@ -18,11 +18,12 @@ smith -c                    # resume the latest session
 ```bash
 cd ~/src/smith
 bun install
-bun run build            # produces dist/smith (single binary)
-ln -s ~/src/smith/dist/smith /opt/homebrew/bin/smith
+bun run install-bin      # compiles dist/smith and installs it to ~/.local/bin/smith
 ```
 
-Or run from source: `bun src/index.ts`.
+The installer prints a PATH hint if `~/.local/bin` isn't on your PATH; set
+`SMITH_INSTALL_DIR` to install somewhere else. `bun run build` compiles
+without installing. Or run from source: `bun src/index.ts`.
 
 ## Hardware profiles
 

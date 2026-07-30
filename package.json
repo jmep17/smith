@@ -10,6 +10,7 @@
   "scripts": {
     "start": "bun src/index.ts",
     "build": "bun build.ts",
+    "install-bin": "bun build.ts --install",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
