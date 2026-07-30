@@ -12,6 +12,8 @@ export interface ToolContext {
   setCwd: (dir: string) => void;
   /** Session todo list, owned by the TaskWrite tool. */
   todos: { content: string; status: string }[];
+  /** Last post-edit diagnostics run (epoch ms), for debouncing. */
+  lastDiagnosticsAt: number;
 }
 
 export interface ToolDef<S extends z.ZodType = z.ZodType> {

@@ -11,8 +11,9 @@ import { type PermissionSettings, persistAllowRule } from "../permissions/store.
 import { mainModel } from "../provider/client.ts";
 import type { Profile } from "../provider/profiles.ts";
 import { toolsForProfile } from "../tools/index.ts";
-import type { ToolContext, ToolDef } from "../tools/types.ts";
+import { resolvePath, type ToolContext, type ToolDef } from "../tools/types.ts";
 import { compactMessages, estimateTokens } from "./compact.ts";
+import { runPostEditChecks } from "./diagnostics.ts";
 import { wantsMockup } from "./mockup-guidance.ts";
 import { buildSystemPrompt, loadMemory } from "./system-prompt.ts";
 
@@ -60,6 +61,7 @@ export class AgentSession {
         this.ctx.cwd = dir;
       },
       todos: [],
+      lastDiagnosticsAt: 0,
     };
   }
 
@@ -276,6 +278,15 @@ export class AgentSession {
         output =
           output.slice(0, cap) +
           `\n[result truncated at ${cap} chars — full output saved to ${spillPath}]`;
+      }
+      // Ground truth after code edits: typecheck + token lint, appended past
+      // the cap so diagnostics (already bounded) are never truncated away.
+      if (call.toolName === "Edit" || call.toolName === "Write") {
+        const fp = (parsed.data as { file_path?: unknown }).file_path;
+        if (typeof fp === "string") {
+          const checked = await runPostEditChecks(resolvePath(fp, this.ctx), this.ctx);
+          if (checked) output += `\n\n${checked}`;
+        }
       }
       bus.emit({
         type: "tool-result",

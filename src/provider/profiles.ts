@@ -24,6 +24,8 @@ export interface Profile {
   promptTier: PromptTier;
   /** Cap on injected AGENT.md before truncation (chars). */
   maxMemoryChars: number;
+  /** Run typecheck/token-lint after Edit/Write to code files. */
+  postEditChecks: boolean;
 }
 
 const PROFILES: Record<string, Profile> = {
@@ -40,6 +42,7 @@ const PROFILES: Record<string, Profile> = {
     disabledTools: [],
     promptTier: "full",
     maxMemoryChars: 6_000,
+    postEditChecks: true,
   },
   air: {
     name: "air",
@@ -53,6 +56,7 @@ const PROFILES: Record<string, Profile> = {
     disabledTools: [],
     promptTier: "lean",
     maxMemoryChars: 2_400,
+    postEditChecks: true,
   },
 };
 

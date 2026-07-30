@@ -1,4 +1,5 @@
 import type { Profile } from "../provider/profiles.ts";
+import { detectDevServer } from "./diagnostics.ts";
 import { frontendGuidance, greenfieldGuidance } from "./frontend-guidance.ts";
 import { mockupGuidance } from "./mockup-guidance.ts";
 import { detectStack, isGreenfield, renderStackCard } from "./stack.ts";
@@ -31,7 +32,11 @@ export async function buildSystemPrompt(
   memory: string | null,
   opts: PromptOptions = {},
 ): Promise<string> {
-  const [git, stack] = await Promise.all([gitStatus(cwd), detectStack(cwd)]);
+  const stack = await detectStack(cwd);
+  const [git, devPort] = await Promise.all([
+    gitStatus(cwd),
+    stack?.isFrontend ? detectDevServer() : Promise.resolve(null),
+  ]);
   const base = `You are smith, a coding agent running in a terminal. You help with software engineering: exploring code, fixing bugs, writing features, running commands, and writing documentation.
 
 # How to work
@@ -47,7 +52,7 @@ export async function buildSystemPrompt(
 - cwd: ${cwd}
 - platform: macOS (Apple Silicon)
 - date: ${new Date().toISOString().slice(0, 10)}
-- git: ${git}`;
+- git: ${git}${devPort ? `\n- dev server: http://localhost:${devPort} (responding)` : ""}`;
 
   const parts = [base];
   if (stack) parts.push(renderStackCard(stack, profile.promptTier));

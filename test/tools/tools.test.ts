@@ -25,6 +25,7 @@ beforeEach(async () => {
       ctx.cwd = d;
     },
     todos: [],
+    lastDiagnosticsAt: 0,
   };
 });
 

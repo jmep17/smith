@@ -176,6 +176,17 @@ Since the models can't see, make the runtime legible as text. In ascending cost:
   verification. Heavy dependency, competes with the model for RAM, 1–3K tokens per
   snapshot. Defer; `m4`-only if ever; never for `air`.
 
+**Status: (a) and (b) implemented** (`src/agent/diagnostics.ts`, hooked in
+`AgentSession.dispatch`). Implementation notes vs the sketch above: typecheck
+only in v1 — eslint deferred for latency; a `typecheck`/`check` script is used
+only when its command starts with `tsc`, otherwise the local
+`node_modules/.bin/tsc` binary runs directly — Edit/Write permission must not
+become silent execution of arbitrary npm scripts. 10s debounce
+(`ToolContext.lastDiagnosticsAt`), 45s timeout, errors truncated at 1,600 chars,
+gated by `Profile.postEditChecks`. The design-token lint (idea 10) rides the
+same hook. Dev-server detection is a 250ms port probe (3000/5173/8080/4321),
+run only for frontend repos, surfaced as an Environment line.
+
 **Hook:** a post-tool step in `src/agent/loop.ts` is cleaner than teaching each
 tool about diagnostics; command selection comes from stack detection.
 
