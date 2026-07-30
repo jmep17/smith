@@ -11,6 +11,7 @@ smith -c                    # resume the latest session
 ## Requirements
 
 - [Bun](https://bun.sh) (`brew install oven-sh/bun/bun`)
+- [ripgrep](https://github.com/BurntSushi/ripgrep) (`brew install ripgrep`) — the compiled binary needs `rg` on PATH; running from source falls back to the bundled `@vscode/ripgrep`
 - LM Studio serving on `localhost:1234` — the sibling repo `~/src/local-claude` handles install + model download (`./setup.sh && ./server.sh start`)
 
 ## Install

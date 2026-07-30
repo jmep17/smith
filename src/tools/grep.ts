@@ -1,8 +1,36 @@
-import { rgPath } from "@vscode/ripgrep";
 import { z } from "zod";
 import { resolvePath, type ToolDef } from "./types.ts";
 
 const MAX_OUTPUT = 20_000;
+
+let cachedRg: string | null = null;
+
+/**
+ * Locate ripgrep lazily. @vscode/ripgrep resolves its platform binary on
+ * disk at import time, which crashes inside a compiled single-file binary
+ * ($bunfs has no bin/rg) — so prefer a system rg and only fall back to the
+ * package when running from source.
+ */
+async function findRg(): Promise<string> {
+  if (cachedRg) return cachedRg;
+  const system = Bun.which("rg");
+  if (system) {
+    cachedRg = system;
+    return system;
+  }
+  try {
+    const { rgPath } = await import("@vscode/ripgrep");
+    if (await Bun.file(rgPath).exists()) {
+      cachedRg = rgPath;
+      return rgPath;
+    }
+  } catch {
+    // not resolvable here (compiled binary) — fall through
+  }
+  throw new Error(
+    "ripgrep not found — install it (e.g. `brew install ripgrep`) to use Grep.",
+  );
+}
 
 const schema = z.object({
   pattern: z.string().describe("Regular expression to search for (ripgrep syntax)"),
@@ -33,7 +61,7 @@ export const grepTool: ToolDef<typeof schema> = {
     args.push("-e", input.pattern);
     args.push(input.path ? resolvePath(input.path, ctx) : ctx.cwd);
 
-    const proc = Bun.spawn([rgPath, ...args], {
+    const proc = Bun.spawn([await findRg(), ...args], {
       cwd: ctx.cwd,
       stdout: "pipe",
       stderr: "pipe",
