@@ -18,6 +18,8 @@ export interface StackInfo {
   scripts: Record<string, string>;
   /** Existing component directories, relative to the repo root. */
   componentDirs: string[];
+  /** CSS custom properties from the design-token source (capped). */
+  designTokens: string[];
   /** True when this looks like a browser frontend (not a TUI or plain library). */
   isFrontend: boolean;
 }
@@ -35,6 +37,17 @@ const COMPONENT_DIRS = [
   "app/components",
   "src/lib/components",
 ];
+/** Files that commonly hold CSS design tokens (:root vars, Tailwind v4 @theme). */
+const TOKEN_FILES = [
+  "src/styles/globals.css",
+  "src/app/globals.css",
+  "app/globals.css",
+  "styles/globals.css",
+  "src/styles/tokens.css",
+  "src/index.css",
+  "src/global.css",
+];
+const MAX_TOKENS = 12;
 /** Markers of an established non-JS project; suppress greenfield guidance when present. */
 const OTHER_PROJECT_MARKERS = [
   "pyproject.toml",
@@ -72,6 +85,21 @@ async function anyExists(cwd: string, paths: string[]): Promise<string | null> {
     if (await exists(`${cwd}/${p}`)) return p;
   }
   return null;
+}
+
+/** Read CSS custom properties (`--name: value`) from the first token file found. */
+async function extractDesignTokens(cwd: string): Promise<string[]> {
+  const file = await anyExists(cwd, TOKEN_FILES);
+  if (!file) return [];
+  try {
+    const css = await Bun.file(`${cwd}/${file}`).text();
+    const tokens = [...css.matchAll(/(--[\w-]+)\s*:\s*([^;{}]+);/g)].map(
+      (m) => `${m[1]}: ${(m[2] ?? "").trim()}`,
+    );
+    return [...new Set(tokens)].slice(0, MAX_TOKENS);
+  } catch {
+    return [];
+  }
 }
 
 async function detect(cwd: string, pkg: PackageJson): Promise<StackInfo> {
@@ -169,6 +197,8 @@ async function detect(cwd: string, pkg: PackageJson): Promise<StackInfo> {
     if (await exists(`${cwd}/${dir}`)) componentDirs.push(dir);
   }
 
+  const designTokens = await extractDesignTokens(cwd);
+
   // ink means terminal UI: react alone is not a browser frontend signal there.
   const tui = has("ink");
   const isFrontend = browserFramework || styling !== null || (has("react") && !tui);
@@ -183,6 +213,7 @@ async function detect(cwd: string, pkg: PackageJson): Promise<StackInfo> {
     packageManager,
     scripts,
     componentDirs,
+    designTokens,
     isFrontend,
   };
 }
@@ -236,6 +267,8 @@ export function renderStackCard(stack: StackInfo, tier: PromptTier): string {
     if (stack.testRunner) lines.push(`- tests: ${stack.testRunner}`);
     if (stack.componentDirs.length > 0)
       lines.push(`- components: ${stack.componentDirs.join(", ")}`);
+    if (stack.isFrontend && stack.designTokens.length > 0)
+      lines.push(`- design tokens: ${stack.designTokens.slice(0, 8).join("; ")}`);
   }
   return `# Project stack\n${lines.join("\n")}`;
 }

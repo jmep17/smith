@@ -17,6 +17,7 @@ Usage:
 
 Options:
   -p, --prompt <text>   Run one prompt and exit
+  --init                Generate an AGENT.md for the current project and exit
   --profile <name>      Hardware profile: m4 | air (default: auto by RAM)
   --allow <rule>        Permission allow rule, repeatable, e.g. --allow "Bash(npm *)"
   -y, --yes             Auto-approve all permission requests (headless)
@@ -30,6 +31,7 @@ async function main() {
     args: Bun.argv.slice(2),
     options: {
       prompt: { type: "string", short: "p" },
+      init: { type: "boolean", default: false },
       profile: { type: "string" },
       allow: { type: "string", multiple: true },
       yes: { type: "boolean", short: "y", default: false },
@@ -42,6 +44,13 @@ async function main() {
 
   if (values.help) {
     process.stdout.write(HELP);
+    return;
+  }
+
+  if (values.init) {
+    // Template-driven: deterministic stack detection fills the file, no model needed.
+    const { runInit } = await import("./agent/init.ts");
+    console.log(`wrote ${await runInit(process.cwd())}`);
     return;
   }
 

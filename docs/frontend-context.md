@@ -104,6 +104,14 @@ native and code that looks pasted from a tutorial.
 manageable regex job). **Tokens:** token card ~80–150; cap generated AGENT.md per
 profile (~600 tokens on air) since `loadMemory` currently injects unconditionally.
 
+**Status: implemented.** `smith --init` (`src/agent/init.ts`) is fully
+template-driven — deterministic detection fills stack, commands, tokens, and the
+component inventory (idea 9); no LLM involved, and it refuses to overwrite an
+existing AGENT.md. Design tokens are CSS-first: `--var: value` pairs regex-read
+from the first common token file found (`app/globals.css` etc., covering both
+`:root` and Tailwind v4 `@theme` blocks), capped at 12, carried on
+`StackInfo.designTokens`, and shown in the full-tier stack card.
+
 ### 4. Exemplar retrieval: read a sibling before writing a new component
 
 Real developers pattern-match off neighboring code constantly. Three escalating
@@ -138,6 +146,11 @@ creating a form, first Read …").
 
 **Cost:** low. **Tokens:** index ~30–60 always-on; playbook 300–800 on demand.
 
+**Status: implemented** together with 6a in `src/agent/skills.ts`: the
+`# Reference material` prompt section indexes repo playbooks (`.smith/skills/*.md`)
+and applicable bundled cheat-sheets; entries are loaded on demand with the
+ordinary Read tool. Lean profiles list at most two entries.
+
 ### 6. Docs: bundled cheat-sheets first, live fetching second
 
 - **(a) Bundled version-keyed cheat-sheets** (`tailwind-v4.md`, `react-19.md`,
@@ -152,6 +165,12 @@ creating a form, first Read …").
   the tiny context.
 
 **Cost:** (a) low code, medium curation; (b) medium.
+
+**Status: (a) implemented.** Three sheets ship in `src/agent/skills.ts`
+(Tailwind v4 CSS-first config + renames, React 19 APIs, Next.js 15 async
+request/caching changes), selected by stack detection, materialized idempotently
+to `~/.local/share/smith/sheets/` so the Read tool can load them. (b) remains
+future work.
 
 ### 7. A text-based runtime feedback loop (the screenshot substitute)
 
@@ -298,6 +317,10 @@ only if the prompt-only version proves insufficient in practice.
 **Deferred or never:** 7d headless snapshots (revisit m4-only), 7c console capture
 (after Phase 2 proves out), 4c embeddings (never), 12 preprocessing
 (opportunistic).
+
+**Roadmap status: Phases 1–4 implemented** (plus mockup mode, idea 13). Still
+open, in rough value order: 6b WebFetch doc cache, 4b `FindExemplar` tool, 7c
+console capture, 7d a11y-tree snapshots, 12 small-model preprocessing.
 
 ## Touch points in the current architecture
 

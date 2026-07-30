@@ -2,6 +2,7 @@ import type { Profile } from "../provider/profiles.ts";
 import { detectDevServer } from "./diagnostics.ts";
 import { frontendGuidance, greenfieldGuidance } from "./frontend-guidance.ts";
 import { mockupGuidance } from "./mockup-guidance.ts";
+import { referenceIndex } from "./skills.ts";
 import { detectStack, isGreenfield, renderStackCard } from "./stack.ts";
 
 async function gitStatus(cwd: string): Promise<string> {
@@ -72,6 +73,8 @@ export async function buildSystemPrompt(
     parts.push(greenfieldGuidance(profile.promptTier));
   }
   if (opts.mockups) parts.push(mockupGuidance(stack, profile.promptTier));
+  const refs = await referenceIndex(cwd, stack, profile.promptTier);
+  if (refs) parts.push(refs);
   return parts.join("\n\n");
 }
 
