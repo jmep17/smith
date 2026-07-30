@@ -2,6 +2,7 @@
 import { mkdir } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { AgentSession } from "./agent/loop.ts";
+import { describeError } from "./errors.ts";
 import { AgentBus } from "./events.ts";
 import { attachHeadlessRenderer } from "./headless.ts";
 import { loadSettings } from "./permissions/store.ts";
@@ -123,6 +124,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`smith: ${err instanceof Error ? err.message : err}`);
+  console.error(`smith: ${describeError(err)}`);
   process.exit(1);
 });

@@ -44,6 +44,8 @@ Read · Write · Edit · Bash · Glob · Grep · WebFetch · WebSearch (DuckDuck
 
 Design notes for local models: a small flat toolset, malformed tool calls are fed back as errors for self-repair (3 strikes per turn), oversized results spill to `~/.local/share/smith/spill/`, and history auto-compacts near the context limit.
 
+Engine hiccups — LM Studio's `500 Compute error` / "Engine protocol predict stream returned an error" — are retried twice with backoff when the failed attempt produced no output. Whatever survives that is reported with the server's actual message plus a hint (usually VRAM pressure or a context overflow: `/compact`, shorten the turn, or reload the model).
+
 ## Permissions
 
 Read-only tools run freely; Write/Edit/Bash/WebFetch prompt (allow once / always / deny). "Always" persists a rule to `.smith/settings.json`:

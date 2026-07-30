@@ -2,6 +2,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { AgentSession } from "../agent/loop.ts";
+import { describeError } from "../errors.ts";
 import type { Profile } from "../provider/profiles.ts";
 import { PermissionPrompt } from "./PermissionPrompt.tsx";
 import type { TuiStore } from "./store.ts";
@@ -64,7 +65,7 @@ export function App({ session, store, profile }: AppProps) {
             await session.compact();
             store.addInfo("conversation compacted");
           } catch (err) {
-            store.addError(`compact failed: ${err instanceof Error ? err.message : err}`);
+            store.addError(`compact failed: ${describeError(err)}`);
           }
           return;
         }
@@ -90,7 +91,7 @@ export function App({ session, store, profile }: AppProps) {
         store.addInfo("interrupted");
         store.turnDone();
       } else {
-        store.addError(err instanceof Error ? err.message : String(err));
+        store.addError(describeError(err));
       }
     } finally {
       abortRef.current = null;

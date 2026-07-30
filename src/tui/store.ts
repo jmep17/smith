@@ -65,6 +65,9 @@ export class TuiStore {
   }
 
   addError(text: string): void {
+    // Close any half-streamed assistant block first, otherwise it stays in
+    // raw (unrendered) form for the rest of the session.
+    this.closeStream();
     this.items.push({ kind: "error", text });
     this.busy = false;
     this.publish();
@@ -149,6 +152,7 @@ export class TuiStore {
         this.closeStream();
         break;
       case "error":
+        this.closeStream();
         this.items.push({ kind: "error", text: event.message });
         break;
     }

@@ -1,10 +1,17 @@
 import {
+  type LanguageModel,
   type ModelMessage,
   streamText,
   type ToolResultPart,
   type ToolSet,
   tool,
 } from "ai";
+import {
+  describeError,
+  engineErrorHint,
+  isTransientEngineError,
+  toError,
+} from "../errors.ts";
 import type { AgentBus } from "../events.ts";
 import { evaluatePermission, ruleForAlways } from "../permissions/engine.ts";
 import { type PermissionSettings, persistAllowRule } from "../permissions/store.ts";
@@ -18,6 +25,9 @@ import { wantsMockup } from "./mockup-guidance.ts";
 import { buildSystemPrompt, loadMemory } from "./system-prompt.ts";
 
 const MAX_CONSECUTIVE_REPAIRS = 3;
+/** Extra attempts for a step whose stream died before producing anything. */
+const MAX_STREAM_RETRIES = 2;
+const STREAM_RETRY_BASE_MS = 500;
 
 export interface AgentSessionOptions {
   cwd: string;
@@ -28,6 +38,8 @@ export interface AgentSessionOptions {
   abortSignal?: AbortSignal;
   /** JSONL file that receives every message appended during a turn. */
   sessionFile?: string;
+  /** Override the profile's model — tests inject a mock here. */
+  model?: LanguageModel;
 }
 
 export class AgentSession {
@@ -145,31 +157,7 @@ export class AgentSession {
         });
       }
 
-      const result = streamText({
-        model: mainModel(profile),
-        system,
-        messages: this.messages,
-        tools: this.toolSet,
-        temperature: profile.temperature,
-        topP: profile.topP,
-        abortSignal: this.opts.abortSignal,
-      });
-
-      let stepText = "";
-      for await (const part of result.fullStream) {
-        if (part.type === "text-delta") {
-          stepText += part.text;
-          bus.emit({ type: "text-delta", text: part.text });
-        } else if (part.type === "reasoning-delta") {
-          bus.emit({ type: "reasoning-delta", text: part.text });
-        } else if (part.type === "error") {
-          throw part.error instanceof Error ? part.error : new Error(String(part.error));
-        }
-      }
-      if (stepText) bus.emit({ type: "text-end" });
-
-      const toolCalls = await result.toolCalls;
-      const responseMessages = (await result.response).messages;
+      const { stepText, toolCalls, responseMessages } = await this.streamStep(system);
       this.messages.push(...responseMessages);
 
       if (toolCalls.length === 0) {
@@ -208,6 +196,75 @@ export class AgentSession {
     return finalText;
   }
 
+  /**
+   * One model call, streamed. Engine hiccups (LM Studio 500 "Compute error")
+   * are retried with backoff as long as the failed attempt produced nothing —
+   * retrying after partial output would duplicate it in the transcript.
+   */
+  private async streamStep(system: string): Promise<{
+    stepText: string;
+    toolCalls: Awaited<ReturnType<typeof streamText>["toolCalls"]>;
+    responseMessages: ModelMessage[];
+  }> {
+    const { profile, bus } = this.opts;
+
+    for (let attempt = 0; ; attempt++) {
+      let stepText = "";
+      try {
+        const result = streamText({
+          model: this.opts.model ?? mainModel(profile),
+          system,
+          messages: this.messages,
+          tools: this.toolSet,
+          temperature: profile.temperature,
+          topP: profile.topP,
+          abortSignal: this.opts.abortSignal,
+          // The SDK's default handler console.errors the raw payload, which
+          // scribbles over the Ink frame. We surface errors ourselves.
+          onError: () => {},
+        });
+
+        for await (const part of result.fullStream) {
+          if (part.type === "text-delta") {
+            stepText += part.text;
+            bus.emit({ type: "text-delta", text: part.text });
+          } else if (part.type === "reasoning-delta") {
+            bus.emit({ type: "reasoning-delta", text: part.text });
+          } else if (part.type === "error") {
+            throw toError(part.error);
+          }
+        }
+        if (stepText) bus.emit({ type: "text-end" });
+
+        return {
+          stepText,
+          toolCalls: await result.toolCalls,
+          responseMessages: (await result.response).messages,
+        };
+      } catch (err) {
+        const aborted = this.opts.abortSignal?.aborted ?? false;
+        const retriable =
+          !aborted &&
+          !stepText &&
+          attempt < MAX_STREAM_RETRIES &&
+          isTransientEngineError(err);
+        if (!retriable) {
+          if (aborted) throw toError(err);
+          const hint = engineErrorHint(err);
+          throw new Error(
+            `model call failed: ${describeError(err)}${hint ? `\nhint: ${hint}` : ""}`,
+            { cause: err },
+          );
+        }
+        bus.emit({
+          type: "info",
+          message: `engine error (${describeError(err)}) — retrying ${attempt + 1}/${MAX_STREAM_RETRIES}`,
+        });
+        await Bun.sleep(STREAM_RETRY_BASE_MS * 2 ** attempt);
+      }
+    }
+  }
+
   private async dispatch(
     call: {
       toolCallId: string;
@@ -231,7 +288,7 @@ export class AgentSession {
       markRepair();
       const reason = !toolDef
         ? `unknown tool '${call.toolName}'. Available tools: ${[...this.tools.keys()].join(", ")}`
-        : `invalid tool input: ${call.error instanceof Error ? call.error.message : String(call.error ?? "unparsable arguments")}`;
+        : `invalid tool input: ${call.error == null ? "unparsable arguments" : describeError(call.error)}`;
       bus.emit({ type: "repair", message: reason });
       return asResult(`ERROR: ${reason}. Fix the call and try again.`);
     }
@@ -297,7 +354,7 @@ export class AgentSession {
       });
       return asResult(output);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = describeError(err);
       bus.emit({
         type: "tool-result",
         id: call.toolCallId,
