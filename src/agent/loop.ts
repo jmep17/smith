@@ -13,6 +13,7 @@ import type { Profile } from "../provider/profiles.ts";
 import { toolsForProfile } from "../tools/index.ts";
 import type { ToolContext, ToolDef } from "../tools/types.ts";
 import { compactMessages, estimateTokens } from "./compact.ts";
+import { wantsMockup } from "./mockup-guidance.ts";
 import { buildSystemPrompt, loadMemory } from "./system-prompt.ts";
 
 const MAX_CONSECUTIVE_REPAIRS = 3;
@@ -35,6 +36,8 @@ export class AgentSession {
   private readonly tools: Map<string, ToolDef>;
   private readonly toolSet: ToolSet;
   private readonly ctx: ToolContext;
+  /** Sticky once a turn asks for mockup/wireframe work, so iteration keeps the guidance. */
+  private mockupMode = false;
 
   constructor(opts: AgentSessionOptions) {
     this.opts = opts;
@@ -68,6 +71,11 @@ export class AgentSession {
   /** Restore messages from a previous session (--resume/--continue). */
   restore(messages: ModelMessage[]): void {
     this.messages.push(...messages);
+    for (const m of messages) {
+      if (m.role === "user" && typeof m.content === "string" && wantsMockup(m.content)) {
+        this.mockupMode = true;
+      }
+    }
   }
 
   /** Estimated context usage as a fraction of the profile's limit. */
@@ -109,8 +117,11 @@ export class AgentSession {
 
   private async runTurn(prompt: string): Promise<string> {
     const { profile, bus } = this.opts;
+    if (wantsMockup(prompt)) this.mockupMode = true;
     const memory = await loadMemory(this.ctx.cwd);
-    const system = await buildSystemPrompt(this.ctx.cwd, profile, memory);
+    const system = await buildSystemPrompt(this.ctx.cwd, profile, memory, {
+      mockups: this.mockupMode,
+    });
     this.messages.push({ role: "user", content: prompt });
 
     let step = 0;

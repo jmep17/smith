@@ -230,6 +230,27 @@ this) to summarize large fetched docs or oversized exemplar files before they en
 the main context. An opportunistic optimization, not a foundation — and on `air`,
 where `smallModel` equals the main model, it costs latency.
 
+### 13. Mockup & wireframe mode (implemented)
+
+Mockups are a distinct working mode from production code — standalone, disposable,
+visual-first, and exempt from house conventions — so they get their own guidance
+module (`src/agent/mockup-guidance.ts`) rather than a place in the always-on
+frontend block. The deliverable prior: one self-contained HTML file per screen in
+`mockups/`, all CSS/JS inline, no build step and no network requests, interactive
+via small inline vanilla JS (hash-routed screens, tabs, modals, form states) —
+the only mockup format a terminal agent and a text-only local model can reliably
+produce, view (`open mockups/x.html`), and iterate on. Fidelity is explicit:
+grayscale labeled-placeholder wireframes vs hi-fi mockups with realistic content,
+which reuse the repo's design tokens when a design system is detected.
+
+Because small models fetch optional context poorly (the idea-5 risk), the mode is
+triggered deterministically: `wantsMockup()` keyword-matches the user's prompt
+(mockup/wireframe/prototype) in `AgentSession.runTurn`, sticks for the rest of the
+session so iteration turns keep the guidance, and is re-derived from restored
+messages on `--resume`. When active it also supersedes greenfield scaffolding
+guidance — loose HTML is the point, not a mistake. Cost: zero on non-mockup
+sessions; one tiered section (~500 tokens full / ~150 lean) when active.
+
 ## Explicitly overkill for local models
 
 - **Embeddings/RAG** — infra weight and RAM contention for marginal gain over

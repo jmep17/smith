@@ -1,5 +1,6 @@
 import type { Profile } from "../provider/profiles.ts";
 import { frontendGuidance, greenfieldGuidance } from "./frontend-guidance.ts";
+import { mockupGuidance } from "./mockup-guidance.ts";
 import { detectStack, isGreenfield, renderStackCard } from "./stack.ts";
 
 async function gitStatus(cwd: string): Promise<string> {
@@ -19,10 +20,16 @@ async function gitStatus(cwd: string): Promise<string> {
   }
 }
 
+export interface PromptOptions {
+  /** Session has asked for mockup/wireframe work (sticky, see AgentSession). */
+  mockups?: boolean;
+}
+
 export async function buildSystemPrompt(
   cwd: string,
   profile: Profile,
   memory: string | null,
+  opts: PromptOptions = {},
 ): Promise<string> {
   const [git, stack] = await Promise.all([gitStatus(cwd), detectStack(cwd)]);
   const base = `You are smith, a coding agent running in a terminal. You help with software engineering: exploring code, fixing bugs, writing features, running commands, and writing documentation.
@@ -55,9 +62,11 @@ export async function buildSystemPrompt(
   if (stack) {
     const guidance = frontendGuidance(stack, profile.promptTier);
     if (guidance) parts.push(guidance);
-  } else if (await isGreenfield(cwd)) {
+  } else if (!opts.mockups && (await isGreenfield(cwd))) {
+    // Mockup mode supersedes greenfield: standalone HTML is the point there.
     parts.push(greenfieldGuidance(profile.promptTier));
   }
+  if (opts.mockups) parts.push(mockupGuidance(stack, profile.promptTier));
   return parts.join("\n\n");
 }
 
