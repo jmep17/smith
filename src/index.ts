@@ -19,6 +19,8 @@ Options:
   -p, --prompt <text>   Run one prompt and exit
   --init                Generate an AGENT.md for the current project and exit
   --profile <name>      Hardware profile: m4 | air (default: auto by RAM)
+  --model <id>          Override the profile's model (must match an LM Studio model id;
+                        also settable via SMITH_MODEL)
   --allow <rule>        Permission allow rule, repeatable, e.g. --allow "Bash(npm *)"
   -y, --yes             Auto-approve all permission requests (headless)
   -q, --quiet           Only print the final answer (with -p)
@@ -33,6 +35,7 @@ async function main() {
       prompt: { type: "string", short: "p" },
       init: { type: "boolean", default: false },
       profile: { type: "string" },
+      model: { type: "string" },
       allow: { type: "string", multiple: true },
       yes: { type: "boolean", short: "y", default: false },
       quiet: { type: "boolean", short: "q", default: false },
@@ -54,7 +57,7 @@ async function main() {
     return;
   }
 
-  const profile = getProfile(values.profile);
+  const profile = getProfile(values.profile, values.model);
   const health = await checkHealth(profile);
   if (!health.ok) {
     console.error(`smith: ${health.message}`);

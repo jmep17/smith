@@ -162,3 +162,21 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("x".repeat(air.maxMemoryChars + 1));
   });
 });
+
+describe("model override", () => {
+  test("--model swaps the main model only; SMITH_MODEL works too", () => {
+    const base = getProfile("m4");
+    const flag = getProfile("m4", "qwen/qwen3-coder-14b");
+    expect(flag.model).toBe("qwen/qwen3-coder-14b");
+    expect(flag.smallModel).toBe(base.smallModel);
+    expect(flag.contextLength).toBe(base.contextLength);
+
+    process.env.SMITH_MODEL = "custom/model";
+    try {
+      expect(getProfile("air").model).toBe("custom/model");
+    } finally {
+      delete process.env.SMITH_MODEL;
+    }
+    expect(getProfile("air").model).toBe("qwen/qwen3.5-9b");
+  });
+});

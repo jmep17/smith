@@ -68,7 +68,7 @@ export function detectProfileName(): string {
   return memBytes >= 40 * 1024 ** 3 ? "m4" : "air";
 }
 
-export function getProfile(name?: string): Profile {
+export function getProfile(name?: string, model?: string): Profile {
   const resolved = name ?? detectProfileName();
   const profile = PROFILES[resolved];
   if (!profile) {
@@ -76,7 +76,10 @@ export function getProfile(name?: string): Profile {
       `unknown profile '${resolved}' (expected: ${Object.keys(PROFILES).join(", ")})`,
     );
   }
-  return profile;
+  // --model / SMITH_MODEL swap the main model only; smallModel and the
+  // context/sampling knobs stay with the profile.
+  const override = model ?? process.env.SMITH_MODEL;
+  return override ? { ...profile, model: override } : profile;
 }
 
 export const LMSTUDIO_URL = process.env.SMITH_BASE_URL ?? "http://localhost:1234";
